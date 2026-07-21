@@ -6,9 +6,6 @@ import com.example.backend.dto.*;
 import com.example.backend.entity.Category;
 import com.example.backend.entity.MeetingPost;
 import com.example.backend.entity.Member;
-import com.example.backend.entity.Participation;
-import com.example.backend.enums.ParticipationRole;
-import com.example.backend.enums.ParticipationStatus;
 import com.example.backend.repository.CategoryRepository;
 import com.example.backend.repository.MeetingPostRepository;
 import com.example.backend.repository.MemberRepository;
@@ -19,7 +16,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -146,32 +142,18 @@ public class MeetingService {
 
     @Transactional(readOnly = true)
     public List<MeetingListResponse> getAllMeetings(String sortBy, Long categoryId) {
-        // sort를 변수로 추출
-        Sort sort = getSortOrder(sortBy);
-
-        // 카테고리가 있다면 카테고리 + sort
-        // 카테고리가 없다면 sort만
-        List<MeetingPost> posts = (categoryId != null)
-                ? meetingPostRepository.findByCategoryId(categoryId, sort)
-                : meetingPostRepository.findAll(sort);
-
-        // 'urgent' 케이스만 따로 처리하는 구조는 유지하되, 전체적으로 stream 활용
-        if ("urgent".equalsIgnoreCase(sortBy)) {
-            posts = meetingPostRepository.findAllOrderByUrgent(categoryId);
-        }
+        // sortBy별로 fetch join 쿼리를 분리해서 N+1 없이 category/creator를 한 번에 가져온다.
+        // categoryId는 각 쿼리 내부에서 null 허용 조건으로 처리 (필터 없으면 전체 조회)
+        List<MeetingPost> posts = switch (sortBy.toLowerCase()) {
+            case "closing" -> meetingPostRepository.findAllOrderByClosing(categoryId);
+            case "popular" -> meetingPostRepository.findAllOrderByPopular(categoryId);
+            case "urgent" -> meetingPostRepository.findAllOrderByUrgent(categoryId);
+            default -> meetingPostRepository.findAllOrderByLatest(categoryId);
+        };
 
         return posts.stream()
                 .map(MeetingListResponse::from)
                 .collect(Collectors.toList());
-    }
-
-    // 정렬 조건 생성 로직 분리 (가독성 향상)
-    private Sort getSortOrder(String sortBy) {
-        return switch (sortBy.toLowerCase()) {
-            case "closing" -> Sort.by(Sort.Direction.ASC, "startDate");
-            case "popular" -> Sort.by(Sort.Direction.DESC, "viewCount");
-            default -> Sort.by(Sort.Direction.DESC, "createdAt");
-        };
     }
 
     /**

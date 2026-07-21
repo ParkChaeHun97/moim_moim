@@ -19,6 +19,7 @@ import java.util.List;
 @Builder
 @AllArgsConstructor
 public class MeetingPost extends BaseTimeEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

@@ -7,20 +7,15 @@ import com.example.backend.dto.RegisterRequest;
 import com.example.backend.dto.TokenResponseDto;
 import com.example.backend.entity.Member;
 import com.example.backend.entity.Region;
-import com.example.backend.enums.MemberStatus;
-import com.example.backend.enums.Role;
 import com.example.backend.repository.MemberRepository;
 import com.example.backend.repository.RegionRepository;
 import com.example.backend.repository.TokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.ObjectUtils;
 
-import java.util.concurrent.TimeUnit;
 
 @Service
 @Transactional(readOnly = true)

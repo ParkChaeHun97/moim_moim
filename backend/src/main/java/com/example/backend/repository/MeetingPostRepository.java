@@ -2,7 +2,6 @@ package com.example.backend.repository;
 
 import com.example.backend.entity.MeetingPost;
 import com.example.backend.entity.Participation;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,8 +21,23 @@ public interface MeetingPostRepository extends JpaRepository<MeetingPost, Long> 
     @Query("select m from MeetingPost m join fetch m.category join fetch m.creator order by m.createdAt desc")
     List<MeetingPost> findAllWithDetails();
 
-    // 카테고리 필터링 + 기본 정렬
-    List<MeetingPost> findByCategoryId(Long categoryId, Sort sort);
+    // 최신순 정렬 (기본) + 카테고리 필터 선택
+    @Query("select m from MeetingPost m join fetch m.category join fetch m.creator " +
+            "where (:categoryId is null or m.category.id = :categoryId) " +
+            "order by m.createdAt desc")
+    List<MeetingPost> findAllOrderByLatest(@Param("categoryId") Long categoryId);
+
+    // 마감임박순(startDate 오름차순) + 카테고리 필터 선택
+    @Query("select m from MeetingPost m join fetch m.category join fetch m.creator " +
+            "where (:categoryId is null or m.category.id = :categoryId) " +
+            "order by m.startDate asc")
+    List<MeetingPost> findAllOrderByClosing(@Param("categoryId") Long categoryId);
+
+    // 인기순(viewCount 내림차순) + 카테고리 필터 선택
+    @Query("select m from MeetingPost m join fetch m.category join fetch m.creator " +
+            "where (:categoryId is null or m.category.id = :categoryId) " +
+            "order by m.viewCount desc")
+    List<MeetingPost> findAllOrderByPopular(@Param("categoryId") Long categoryId);
 
     // [특수 정렬] 잔여석 적은 순 (capacity - currentParticipants)
     @Query("SELECT m FROM MeetingPost m " +
