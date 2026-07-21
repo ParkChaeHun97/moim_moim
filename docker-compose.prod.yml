@@ -58,6 +58,7 @@ services:
       - "${REDIS_PORT}:6379"
     volumes:
       - redis_data:/data
+    restart: always
     # 환경 변수를 사용하여 커맨드 구성
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
 
@@ -69,6 +70,7 @@ services:
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
+    restart: always
     entrypoint: >
       sh -c "trap exit TERM;
       while :; do
