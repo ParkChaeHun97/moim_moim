@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Deploy to Home Server
 
 on:
   push:
@@ -15,6 +15,7 @@ jobs:
         with:
           host: ${{ secrets.HOME_SERVER_HOST }}
           username: ${{ secrets.HOME_SERVER_USER }}
+          port: ${{ secrets.HOME_SERVER_PORT }}
           key: ${{ secrets.HOME_SERVER_SSH_KEY }}
 
           script: |
