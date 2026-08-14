@@ -7,3 +7,13 @@ spring:
       ddl-auto: create-drop # 테스트 시작 시 테이블 만들고 끝날 때 삭제
   flyway:
     enabled: false # 테스트 시 Flyway는 일단 꺼두는 게 편합니다
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ""
+
+# HS256은 최소 256bit(32byte) 키를 요구하므로 32자 이상으로 채운 테스트 전용 더미 값
+jwt:
+  secret: test-only-dummy-secret-key-please-change-1234567890

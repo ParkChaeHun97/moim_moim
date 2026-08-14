@@ -97,31 +97,47 @@ public class ParticipationService {
      */
     @Transactional
     public Long updateParticipationStatus(Long participationId, String statusStr, Long hostId) {
-        Participation participation = participationRepository.findById(participationId)
-                .orElseThrow(() -> new CustomException(ErrorCode.PARTICIPATION_NOT_FOUND));
-
-        // 💡 권한 체크
-        if (!participation.getMeetingPost().getCreator().getId().equals(hostId)) {
-            throw new CustomException(ErrorCode.NOT_AUTHORIZED_PARTICIPATION);
-        }
-
+        ParticipationStatus newStatus;
         try {
-            ParticipationStatus newStatus = ParticipationStatus.valueOf(statusStr.toUpperCase());
-            participation.updateStatus(newStatus);
-
-            if (newStatus == ParticipationStatus.ACCEPTED) {
-                MeetingPost post = participation.getMeetingPost();
-                post.addParticipant();
-                // 알림 생성 호출
-                notificationService.createNotification(
-                        participation.getMember(), // 신청자
-                        "[" + participation.getMeetingPost().getTitle() + "] 모임 참여가 승인되었습니다! 🎉",
-                        "/mypage?tab=applied"
-                );
-            }
+            newStatus = ParticipationStatus.valueOf(statusStr.toUpperCase());
         } catch (IllegalArgumentException e) {
             // 💡 잘못된 상태 값 (예: ACCEPTED인데 ACSEPTED로 보낸 경우 등)
             throw new CustomException(ErrorCode.INVALID_PARTICIPATION_STATUS);
+        }
+
+        // 1. 락 없이 meetingPostId만 조회 (어떤 MeetingPost를 잠글지 알아야 하므로)
+        Long meetingPostId = participationRepository.findMeetingPostIdById(participationId)
+                .orElseThrow(() -> new CustomException(ErrorCode.PARTICIPATION_NOT_FOUND));
+
+        // 2. MeetingPost 먼저 잠금 (정원 race condition 방지, 데드락 회피를 위한 락 순서)
+        MeetingPost post = meetingPostRepository.findByIdForUpdate(meetingPostId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MEETING_NOT_FOUND));
+
+        // 💡 권한 체크: Participation 락을 걸기 전에 fail fast
+        if (!post.getCreator().getId().equals(hostId)) {
+            throw new CustomException(ErrorCode.NOT_AUTHORIZED_PARTICIPATION);
+        }
+
+        // 3. Participation은 권한 확인 후 잠금 (동일 신청 중복 처리 방지)
+        Participation participation = participationRepository.findByIdForUpdate(participationId)
+                .orElseThrow(() -> new CustomException(ErrorCode.PARTICIPATION_NOT_FOUND));
+
+        // 4. 멱등성 가드: 락 대기 중 다른 요청이 이미 처리했을 수 있음
+        if (participation.getStatus() != ParticipationStatus.APPLIED
+                && participation.getStatus() != ParticipationStatus.WAITING) {
+            throw new CustomException(ErrorCode.ALREADY_PROCESSED_PARTICIPATION);
+        }
+
+        participation.updateStatus(newStatus);
+
+        if (newStatus == ParticipationStatus.ACCEPTED) {
+            post.addParticipant();
+            // 알림 생성 호출
+            notificationService.createNotification(
+                    participation.getMember(), // 신청자
+                    "[" + post.getTitle() + "] 모임 참여가 승인되었습니다! 🎉",
+                    "/mypage?tab=applied"
+            );
         }
 
         return participation.getId();

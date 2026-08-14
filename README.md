@@ -66,6 +66,9 @@ com.example.backend/
 측정 없이 "개선했다"고 말하지 않기 위해, 각 리팩토링을 **문제 정의 → 측정 → 조치 → 결과** 순으로 기록합니다.
 👉 [`docs/analysis.md`](./docs/analysis.md)
 
+주요 기술적 의사결정은 ADR(Architecture Decision Record)로 별도 기록합니다.
+👉 [`docs/adr/`](./docs/adr/)
+
 ---
 
 ## 💡 Trouble Shooting
@@ -81,7 +84,7 @@ com.example.backend/
 `docs/analysis.md`에 각 단계별 문제→측정→조치→결과를 기록하며 진행합니다.
 
 - [x] **Phase 1. N+1 문제 해결** — fetch join 분리 적용, 쿼리 12→1개 (완료)
-- [ ] **Phase 2. 비관적 락 (Pessimistic Locking)** — 모임 참여 동시성 제어, `PESSIMISTIC_WRITE` + "글 락 → 참여 처리" 순서로 데드락 방지, `ExecutorService`+`CountDownLatch` 기반 동시성 테스트
+- [x] **Phase 2. 비관적 락 (Pessimistic Locking)** — 모임 참여 동시성 제어, `PESSIMISTIC_WRITE` + "글 락 → 참여 처리" 순서로 데드락 방지, `ExecutorService`+`CountDownLatch` 기반 동시성 테스트 (완료)
 - [ ] **Phase 3. Redis 캐싱** — `getAllMeetings()`에 `@Cacheable` 적용 (TTL 30s~1min), 변경 시 `@CacheEvict`
 - [ ] **Phase 4. 조회수 Redis INCR** — viewCount 원자적 증가 처리 (선택)
 - [ ] **Phase 5. k6 부하 테스트** — 로컬 PC에서 운영 서버(moimmoim.co.kr) 대상 3개 시나리오로 TPS/p95/에러율/DB 정합성 측정

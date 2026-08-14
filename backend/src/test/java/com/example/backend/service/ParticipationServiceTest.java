@@ -156,7 +156,9 @@ class ParticipationServiceTest {
         // 서비스 로직에서 return participation.getId() 할 때 500L이 나옵니다.
         ReflectionTestUtils.setField(participation, "id", partId);
 
-        given(participationRepository.findById(partId)).willReturn(Optional.of(participation));
+        given(participationRepository.findMeetingPostIdById(partId)).willReturn(Optional.of(meetingPost.getId()));
+        given(meetingPostRepository.findByIdForUpdate(meetingPost.getId())).willReturn(Optional.of(meetingPost));
+        given(participationRepository.findByIdForUpdate(partId)).willReturn(Optional.of(participation));
 
         // when
         Long resultId = participationService.updateParticipationStatus(partId, "ACCEPTED", hostId);

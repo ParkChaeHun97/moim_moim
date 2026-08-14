@@ -139,7 +139,7 @@ public class MeetingPost extends BaseTimeEntity {
     public void addParticipant() {
         // 1. 엣지 케이스 검증: 현재 인원이 정원(capacity)과 같거나 큰지 확인
         if (this.currentParticipants >= this.capacity) {
-            throw new IllegalStateException("이미 모집 정원(" + this.capacity + "명)이 가득 찼습니다.");
+            throw new CustomException(ErrorCode.MEETING_FULL);
         }
 
         // 2. 상태 변경: 필드명 일관성 유지 (currentCount -> currentParticipants)

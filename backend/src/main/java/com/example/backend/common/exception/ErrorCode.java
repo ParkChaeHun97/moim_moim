@@ -31,6 +31,7 @@ public enum ErrorCode {
     INVALID_PARTICIPATION_STATUS(400, "PART_003", "잘못된 참여 상태 변경 요청입니다."),
     ALREADY_PARTICIPATED(400, "PART_004", "이미 신청했거나 참여 중인 모임입니다."),
     MEETING_FULL(400, "PART_005", "모임 정원이 가득 찼습니다."),
+    ALREADY_PROCESSED_PARTICIPATION(409, "PART_006", "이미 처리된 참여 신청입니다."),
 
     // SSE (Server-Sent Events)
     SSE_CONNECTION_ERROR(500, "SSE_001", "실시간 연결 중 오류가 발생했습니다."),

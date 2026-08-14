@@ -2,8 +2,12 @@ package com.example.backend.repository;
 
 import com.example.backend.entity.MeetingPost;
 import com.example.backend.entity.Participation;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -14,6 +18,12 @@ import java.util.Optional;
 public interface MeetingPostRepository extends JpaRepository<MeetingPost, Long> {
     @Query("select m from MeetingPost m join fetch m.creator join fetch m.category where m.id = :id")
     Optional<MeetingPost> findByIdWithDetails(@Param("id") Long id);
+
+    // 참여 신청 승인/거절 처리 시 정원(currentParticipants) race condition 방지용 비관적 락
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000"))
+    @Query("SELECT m FROM MeetingPost m WHERE m.id = :id")
+    Optional<MeetingPost> findByIdForUpdate(@Param("id") Long id);
 
 
     // 최신 생성일 순으로 전체 조회
