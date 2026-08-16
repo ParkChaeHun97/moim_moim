@@ -51,45 +51,55 @@ class NotificationServiceTest {
         return notification;
     }
 
-    @Test
-    @DisplayName("알림 생성 및 저장 성공")
-    void createNotification_Success() {
-        // given
-        Member receiver = createMember(1L);
+    @Nested
+    @DisplayName("알림 생성 (createNotification)")
+    class CreateNotification {
 
-        // when
-        notificationService.createNotification(receiver, "새로운 신청!", "/mypage");
+        @Test
+        @DisplayName("성공: 알림을 생성하고 저장한다")
+        void createNotification_Success() {
+            // given
+            Member receiver = createMember(1L);
 
-        // then
-        verify(notificationRepository, times(1)).save(any(Notification.class));
-    }
+            // when
+            notificationService.createNotification(receiver, "새로운 신청!", "/mypage");
 
-    @Test
-    @DisplayName("내 알림 목록 최신순 조회 성공")
-    void getMyNotifications_Success() {
-        // given
-        Long memberId = 1L;
-        Member receiver = createMember(memberId);
-        Notification n1 = createNotification(101L, receiver);
-        Notification n2 = createNotification(102L, receiver);
-
-        given(notificationRepository.findByReceiverIdOrderByCreatedAtDesc(memberId))
-                .willReturn(List.of(n2, n1));
-
-        // when
-        List<NotificationResponse> result = notificationService.getMyNotifications(memberId);
-
-        // then
-        assertThat(result).hasSize(2);
-        assertThat(result.get(0).getId()).isEqualTo(102L);
+            // then
+            verify(notificationRepository, times(1)).save(any(Notification.class));
+        }
     }
 
     @Nested
-    @DisplayName("알림 상태 변경 및 권한 검증")
-    class AuthorityCheck {
+    @DisplayName("알림 목록 조회 (getMyNotifications)")
+    class GetMyNotifications {
 
         @Test
-        @DisplayName("본인의 알림인 경우 읽음 처리 성공")
+        @DisplayName("성공: 내 알림 목록을 최신순으로 반환한다")
+        void getMyNotifications_Success() {
+            // given
+            Long memberId = 1L;
+            Member receiver = createMember(memberId);
+            Notification n1 = createNotification(101L, receiver);
+            Notification n2 = createNotification(102L, receiver);
+
+            given(notificationRepository.findByReceiverIdOrderByCreatedAtDesc(memberId))
+                    .willReturn(List.of(n2, n1));
+
+            // when
+            List<NotificationResponse> result = notificationService.getMyNotifications(memberId);
+
+            // then
+            assertThat(result).hasSize(2);
+            assertThat(result.get(0).getId()).isEqualTo(102L);
+        }
+    }
+
+    @Nested
+    @DisplayName("읽음 처리 (markAsRead)")
+    class MarkAsRead {
+
+        @Test
+        @DisplayName("성공: 본인의 알림인 경우 읽음 처리된다")
         void markAsRead_Success() {
             // given
             Long memberId = 1L;
@@ -106,7 +116,7 @@ class NotificationServiceTest {
         }
 
         @Test
-        @DisplayName("다른 사람의 알림을 읽으려 하면 예외 발생 (NOT_AUTHORIZED_NOTIFICATION)")
+        @DisplayName("실패: 다른 사람의 알림을 읽으려 하면 NOT_AUTHORIZED_NOTIFICATION 예외 발생")
         void markAsRead_Fail_NotAuthorized() {
             // given
             Long myId = 1L;
@@ -123,7 +133,7 @@ class NotificationServiceTest {
         }
 
         @Test
-        @DisplayName("알림이 존재하지 않으면 예외 발생 (NOTIFICATION_NOT_FOUND)")
+        @DisplayName("실패: 알림이 존재하지 않으면 NOTIFICATION_NOT_FOUND 예외 발생")
         void markAsRead_Fail_NotFound() {
             // given
             given(notificationRepository.findById(anyLong())).willReturn(Optional.empty());
@@ -133,9 +143,14 @@ class NotificationServiceTest {
                     .isInstanceOf(CustomException.class)
                     .hasMessageContaining(ErrorCode.NOTIFICATION_NOT_FOUND.getMessage());
         }
+    }
+
+    @Nested
+    @DisplayName("알림 삭제 (deleteNotification)")
+    class DeleteNotification {
 
         @Test
-        @DisplayName("본인의 알림인 경우 삭제 성공")
+        @DisplayName("성공: 본인의 알림인 경우 삭제된다")
         void deleteNotification_Success() {
             // given
             Long memberId = 1L;

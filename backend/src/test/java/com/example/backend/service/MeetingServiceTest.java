@@ -47,7 +47,6 @@ class MeetingServiceTest {
         ReflectionTestUtils.setField(studyCategory, "id", 1L);
     }
 
-    // --- 리팩토링된 헬퍼 메서드 ---
     private MeetingPost createPost(Long id, String title, int viewCount) {
         MeetingPost post = MeetingPost.builder()
                 .title(title)
@@ -65,77 +64,94 @@ class MeetingServiceTest {
         return createPost(1L, title, 0);
     }
 
-    // --- 테스트 케이스 ---
+    @Nested
+    @DisplayName("모임 생성 (createMeeting)")
+    class CreateMeeting {
 
-    @Test
-    @DisplayName("새로운 모임 생성 성공 - 생성자가 자동으로 참여자로 등록된다")
-    void createMeeting_success() {
-        // 1. Given
-        Long memberId = 1L;
-        Long categoryId = 1L;
-        Long expectedPostId = 100L;
+        @Test
+        @DisplayName("성공: 생성자가 자동으로 참여자로 등록된다")
+        void createMeeting_success() {
+            // given
+            Long memberId = 1L;
+            Long categoryId = 1L;
+            Long expectedPostId = 100L;
 
-        MeetingPostCreateRequest request = new MeetingPostCreateRequest(
-                "자바 백엔드 스터디", "설명", 5,
-                LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(30),
-                categoryId
-        );
+            MeetingPostCreateRequest request = new MeetingPostCreateRequest(
+                    "자바 백엔드 스터디", "설명", 5,
+                    LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(30),
+                    categoryId
+            );
 
-        given(memberRepository.findById(memberId)).willReturn(Optional.of(testMember));
-        given(categoryRepository.findById(categoryId)).willReturn(Optional.of(studyCategory));
+            given(memberRepository.findById(memberId)).willReturn(Optional.of(testMember));
+            given(categoryRepository.findById(categoryId)).willReturn(Optional.of(studyCategory));
 
-        // 저장 시 ID 100L이 세팅된 객체가 반환된다고 가정
-        given(meetingPostRepository.save(any(MeetingPost.class))).willAnswer(invocation -> {
-            MeetingPost savedPost = invocation.getArgument(0);
-            ReflectionTestUtils.setField(savedPost, "id", expectedPostId);
-            return savedPost;
-        });
+            // save 시 DB가 채워주는 ID를 흉내내어 반환값 매핑을 검증한다
+            given(meetingPostRepository.save(any(MeetingPost.class))).willAnswer(invocation -> {
+                MeetingPost savedPost = invocation.getArgument(0);
+                ReflectionTestUtils.setField(savedPost, "id", expectedPostId);
+                return savedPost;
+            });
 
-        // 2. When (반환 타입을 Long으로 수정)
-        Long resultId = meetingService.createMeeting(request, memberId);
+            // when
+            Long resultId = meetingService.createMeeting(request, memberId);
 
-        // 3. ThenS
-        assertThat(resultId).isEqualTo(expectedPostId);
-
-        // 내부적으로 save가 호출되었는지 검증 (NPE 방지 확인)
-        verify(meetingPostRepository, times(1)).save(any(MeetingPost.class));
-    }
-
-    @Test
-    @DisplayName("내가 만든 모임 목록 조회 성공")
-    void getMyCreatedMeetings_success() {
-        Long memberId = 1L;
-        given(meetingPostRepository.findByCreatorIdOrderByCreatedAtDesc(memberId))
-                .willReturn(List.of(createPost("내가 만든 모임")));
-
-        List<MeetingSummaryResponse> result = meetingService.getMyCreatedMeetings(memberId);
-
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getTitle()).isEqualTo("내가 만든 모임");
-    }
-
-    @Test
-    @DisplayName("내가 신청한 모임 목록 조회 성공")
-    void getMyAppliedMeetings_success() {
-        Long memberId = 1L;
-        Participation participation = Participation.builder()
-                .meetingPost(createPost("신청한 모임"))
-                .member(testMember)
-                .role(ParticipationRole.PARTICIPANT)
-                .status(ParticipationStatus.ACCEPTED)
-                .build();
-
-        given(meetingPostRepository.findAllAppliedByMemberId(memberId)).willReturn(List.of(participation));
-
-        List<MeetingSummaryResponse> result = meetingService.getMyAppliedMeetings(memberId);
-
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getStatus()).isEqualTo("ACCEPTED");
+            // then
+            assertThat(resultId).isEqualTo(expectedPostId);
+            verify(meetingPostRepository, times(1)).save(any(MeetingPost.class));
+        }
     }
 
     @Nested
-    @DisplayName("상세 조회 및 조회수 테스트")
-    class ViewCountTests {
+    @DisplayName("내가 만든 모임 조회 (getMyCreatedMeetings)")
+    class GetMyCreatedMeetings {
+
+        @Test
+        @DisplayName("성공: 내가 만든 모임 목록을 반환한다")
+        void getMyCreatedMeetings_success() {
+            // given
+            Long memberId = 1L;
+            given(meetingPostRepository.findByCreatorIdOrderByCreatedAtDesc(memberId))
+                    .willReturn(List.of(createPost("내가 만든 모임")));
+
+            // when
+            List<MeetingSummaryResponse> result = meetingService.getMyCreatedMeetings(memberId);
+
+            // then
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getTitle()).isEqualTo("내가 만든 모임");
+        }
+    }
+
+    @Nested
+    @DisplayName("내가 신청한 모임 조회 (getMyAppliedMeetings)")
+    class GetMyAppliedMeetings {
+
+        @Test
+        @DisplayName("성공: 내가 신청한 모임 목록을 반환한다")
+        void getMyAppliedMeetings_success() {
+            // given
+            Long memberId = 1L;
+            Participation participation = Participation.builder()
+                    .meetingPost(createPost("신청한 모임"))
+                    .member(testMember)
+                    .role(ParticipationRole.PARTICIPANT)
+                    .status(ParticipationStatus.ACCEPTED)
+                    .build();
+
+            given(meetingPostRepository.findAllAppliedByMemberId(memberId)).willReturn(List.of(participation));
+
+            // when
+            List<MeetingSummaryResponse> result = meetingService.getMyAppliedMeetings(memberId);
+
+            // then
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getStatus()).isEqualTo("ACCEPTED");
+        }
+    }
+
+    @Nested
+    @DisplayName("상세 조회 및 조회수 (getMeetingDetail)")
+    class GetMeetingDetail {
         private final Long postId = 100L;
         private MockHttpServletRequest request;
         private MockHttpServletResponse response;
@@ -147,26 +163,32 @@ class MeetingServiceTest {
         }
 
         @Test
-        @DisplayName("최초 조회 시 조회수가 증가하고 쿠키가 생성된다")
+        @DisplayName("성공: 최초 조회 시 조회수가 증가하고 쿠키가 생성된다")
         void increases_count_on_first_view() {
+            // given
             MeetingPost post = createPost(postId, "최초 조회", 0);
             given(meetingPostRepository.findByIdWithDetails(postId)).willReturn(Optional.of(post));
 
+            // when
             MeetingDetailResponse result = meetingService.getMeetingDetail(postId, 1L, request, response);
 
+            // then
             assertThat(result.getViewCount()).isEqualTo(1);
             assertThat(response.getCookie("postView").getValue()).contains("[" + postId + "]");
         }
 
         @Test
-        @DisplayName("이미 조회한 이력이 있으면 조회수가 유지된다")
+        @DisplayName("성공: 이미 조회한 이력이 있으면 조회수가 유지된다")
         void no_increase_on_duplicate_view() {
+            // given
             MeetingPost post = createPost(postId, "중복 조회", 10);
             given(meetingPostRepository.findByIdWithDetails(postId)).willReturn(Optional.of(post));
             request.setCookies(new Cookie("postView", "[" + postId + "]"));
 
+            // when
             MeetingDetailResponse result = meetingService.getMeetingDetail(postId, 1L, request, response);
 
+            // then
             assertThat(result.getViewCount()).isEqualTo(10);
         }
     }
