@@ -38,10 +38,11 @@ public class AuthController {
         TokenResponseDto tokenDto = authService.login(loginRequest.getEmail(), loginRequest.getPassword());
 
         // 2. Refresh Token을 담을 쿠키 생성 (보안 강화)
+        // 프론트엔드는 nginx/vite 프록시를 통해 항상 API와 동일 출처로 통신하므로
+        // 크로스 사이트 쿠키 전송(SameSite=None)이 필요 없다 — Strict로 CSRF 방어.
         ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", tokenDto.getRefreshToken())
                 .httpOnly(true)    // JavaScript에서 접근 불가 (XSS 방지)
                 .secure(true)      // HTTPS에서만 전송
-                .sameSite("None") // 크로스 도메인/사이트 간 쿠키 전송 허용 추가**
                 .path("/")         // 모든 경로에서 유효
                 .maxAge(tokenDto.getRefreshTokenExpirationTime() / 1000) // 초 단위 설정
                 .sameSite("Strict") // CSRF 방지
@@ -60,11 +61,10 @@ public class AuthController {
         // 쿠키에서 꺼낸 RT로 재발급 수행
         TokenResponseDto tokenDto = authService.reissue(refreshToken);
 
-        //새로 발급된 RT로 쿠키를 다시 만들기
+        //새로 발급된 RT로 쿠키를 다시 만들기 (동일 출처 통신이므로 SameSite=Strict)
         ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", tokenDto.getRefreshToken())
                 .httpOnly(true)
                 .secure(true) // 로컬 테스트 시 false 고려
-                .sameSite("None") // 크로스 도메인/사이트 간 쿠키 전송 허용 추가**
                 .path("/")
                 .maxAge(tokenDto.getRefreshTokenExpirationTime() / 1000)
                 .sameSite("Strict")
