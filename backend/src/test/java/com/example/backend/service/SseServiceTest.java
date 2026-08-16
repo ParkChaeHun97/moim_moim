@@ -4,13 +4,19 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 
 class SseServiceTest {
 
@@ -130,6 +136,27 @@ class SseServiceTest {
             assertDoesNotThrow(() ->
                     sseService.send(999L, "testEvent", "testData")
             );
+        }
+
+        @Test
+        @DisplayName("연결이 끊겨 IOException이 발생해도 예외를 던지지 않고 emitter만 정리한다 (best-effort)")
+        void send_IOException_ShouldNotPropagate() throws IOException {
+            // given: 끊긴 연결을 흉내내는 emitter (send 호출 시 IOException 발생)
+            Long memberId = 1L;
+            SseEmitter brokenEmitter = mock(SseEmitter.class);
+            doThrow(new IOException("Broken pipe")).when(brokenEmitter).send(any(SseEmitter.SseEventBuilder.class));
+
+            @SuppressWarnings("unchecked")
+            Map<Long, SseEmitter> emitters = (Map<Long, SseEmitter>) ReflectionTestUtils.getField(sseService, "emitters");
+            emitters.put(memberId, brokenEmitter);
+
+            // when & then: 예외가 호출자에게 전파되지 않아야 한다
+            assertDoesNotThrow(() ->
+                    sseService.send(memberId, "newNotification", "내용")
+            );
+
+            // 끊긴 emitter는 맵에서 제거되어야 한다
+            assertEquals(0, sseService.getEmittersSize());
         }
     }
 }
