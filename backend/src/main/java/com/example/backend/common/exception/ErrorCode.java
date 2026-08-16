@@ -35,7 +35,6 @@ public enum ErrorCode {
 
     // SSE (Server-Sent Events)
     SSE_CONNECTION_ERROR(500, "SSE_001", "실시간 연결 중 오류가 발생했습니다."),
-    SSE_SEND_ERROR(500, "SSE_002", "알림 전송에 실패했습니다."),
     SSE_REGISTRY_NOT_FOUND(404, "SSE_003", "등록된 SSE 연결을 찾을 수 없습니다."),
 
     // Notification

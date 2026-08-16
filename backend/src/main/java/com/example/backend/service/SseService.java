@@ -1,7 +1,5 @@
 package com.example.backend.service;
 
-import com.example.backend.common.exception.CustomException;
-import com.example.backend.common.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -63,10 +61,9 @@ public class SseService {
                     .name(eventName)
                     .data(data));
         } catch (IOException e) {
+            // SSE는 best-effort 채널이므로 전송 실패가 호출자(비즈니스 트랜잭션)에 전파되지 않도록 흡수한다.
             emitters.remove(memberId);
-            // 여기서 커스텀 예외를 던져서 GlobalExceptionHandler가 잡게 할 수 있습니다.
-            log.error("❌ 전송 중 에러 발생으로 Emitter 제거: {}", memberId);
-            throw new CustomException(ErrorCode.SSE_SEND_ERROR);
+            log.warn("SSE 전송 실패로 Emitter 제거: receiverId={}", memberId, e);
         }
     }
 
