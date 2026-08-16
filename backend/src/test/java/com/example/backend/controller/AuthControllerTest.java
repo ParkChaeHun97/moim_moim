@@ -4,6 +4,7 @@ import com.example.backend.dto.RegisterRequest;
 import com.example.backend.dto.TokenResponseDto;
 import com.example.backend.service.AuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Map;
+
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -75,7 +79,31 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())
                 .andExpect(header().exists("Set-Cookie"))
+                .andExpect(header().string("Set-Cookie", containsString("SameSite=Strict")))
+                .andExpect(header().string("Set-Cookie", not(containsString("SameSite=None"))))
                 .andExpect(jsonPath("$.accessToken").value("access-token"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("토큰 재발급 API 테스트 - 쿠키가 SameSite=Strict 하나로만 설정된다")
+    void reissue_test() throws Exception {
+        TokenResponseDto responseDto = TokenResponseDto.builder()
+                .accessToken("new-access-token")
+                .refreshToken("new-refresh-token")
+                .refreshTokenExpirationTime(3600000L)
+                .build();
+
+        given(authService.reissue(any())).willReturn(responseDto);
+
+        mockMvc.perform(post("/api/auth/reissue")
+                        .with(csrf())
+                        .cookie(new Cookie("refreshToken", "old-refresh-token")))
+                .andExpect(status().isOk())
+                .andExpect(header().exists("Set-Cookie"))
+                .andExpect(header().string("Set-Cookie", containsString("SameSite=Strict")))
+                .andExpect(header().string("Set-Cookie", not(containsString("SameSite=None"))))
+                .andExpect(jsonPath("$.accessToken").value("new-access-token"));
     }
 
     @Test
