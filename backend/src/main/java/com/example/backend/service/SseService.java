@@ -14,6 +14,8 @@ public class SseService {
     // 유저별 Emitter 관리 (Thread-safe)
     private final Map<Long, SseEmitter> emitters = new ConcurrentHashMap<>();
     private static final Long DEFAULT_TIMEOUT = 60L * 1000 * 60; // 1시간
+    // 클라이언트 JS의 재연결 로직이 어떤 이유로 동작하지 않을 때를 대비한 브라우저 기본 재시도 지연 힌트(SSE retry 필드)
+    private static final long RECONNECT_TIME_MS = 3000L;
 
     public SseEmitter subscribe(Long memberId) {
         // 1. 기존 연결이 있으면 종료 (중복 연결 및 메모리 누수 방지)
@@ -59,6 +61,7 @@ public class SseService {
             log.info("✅ 전송 시도: memberId={}, data={}", memberId, data);
             emitter.send(SseEmitter.event()
                     .name(eventName)
+                    .reconnectTime(RECONNECT_TIME_MS)
                     .data(data));
         } catch (IOException e) {
             // SSE는 best-effort 채널이므로 전송 실패가 호출자(비즈니스 트랜잭션)에 전파되지 않도록 흡수한다.

@@ -12,6 +12,40 @@ const Header = () => {
 
   // 💡 SSE 연결을 관리할 ref (중복 연결 방지 및 클린업 용도)
   const eventSourceRef = useRef(null);
+  // 재연결 타이머/시도 횟수 (지수 백오프용)
+  const reconnectTimeoutRef = useRef(null);
+  const reconnectAttemptsRef = useRef(0);
+
+  const MAX_RECONNECT_DELAY_MS = 30000;
+
+  const clearScheduledReconnect = () => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+  };
+
+  // 재연결 예약: 로그아웃(토큰 없음) 상태면 중단, 아니면 지수 백오프(1s→2s→4s→...→최대 30s)로 재시도
+  const scheduleReconnect = () => {
+    const latestToken = localStorage.getItem('accessToken');
+    if (!latestToken) {
+      console.log("🔒 로그인 상태가 아니므로 SSE 재연결을 시도하지 않습니다.");
+      return;
+    }
+
+    const attempt = reconnectAttemptsRef.current + 1;
+    reconnectAttemptsRef.current = attempt;
+    const delay = Math.min(1000 * 2 ** (attempt - 1), MAX_RECONNECT_DELAY_MS);
+
+    console.log(`⏳ SSE 재연결 예약: ${delay}ms 후 시도 (attempt ${attempt})`);
+    reconnectTimeoutRef.current = setTimeout(() => {
+      // 대기하는 동안 로그아웃했을 수 있으므로 재확인
+      const tokenNow = localStorage.getItem('accessToken');
+      if (tokenNow) {
+        connectSSE(tokenNow);
+      }
+    }, delay);
+  };
 
   // 1. 초기 로드 및 로그인 상태 확인
   useEffect(() => {
@@ -25,8 +59,9 @@ const Header = () => {
       connectSSE(token);
     }
 
-    // 언마운트 시 SSE 연결 종료
+    // 언마운트 시 SSE 연결 및 예약된 재연결 타이머 정리
     return () => {
+      clearScheduledReconnect();
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
       }
@@ -36,6 +71,7 @@ const Header = () => {
   // 📡 SSE 연결 함수
 const connectSSE = (token) => {
     if (eventSourceRef.current) return;
+    clearScheduledReconnect();
 
     // 💡 주소 뒤에 반드시 토큰이 잘 붙는지 확인!
     const eventSource = new EventSource(`/api/subscribe?token=${token}`);
@@ -44,12 +80,13 @@ const connectSSE = (token) => {
     // 연결 확인 로그
     eventSource.onopen = () => {
       console.log("✅ SSE 연결이 활성화되었습니다.");
+      reconnectAttemptsRef.current = 0; // 재연결 성공 시 백오프 카운터 초기화
     };
 
     // 💡 백엔드의 "newNotification"을 정확히 구독
     eventSource.addEventListener("newNotification", (event) => {
       console.log("🔔 SSE 수신 성공! 데이터:", event.data);
-      
+
       const newNotiObj = {
         id: Date.now(),
         content: event.data, // 백엔드에서 보낸 문자열 데이터
@@ -63,8 +100,11 @@ const connectSSE = (token) => {
 
     eventSource.onerror = (error) => {
       console.error("❌ SSE 에러 발생:", error);
+      // 브라우저 네이티브 재연결은 끊긴 시점의(만료됐을 수 있는) 토큰을 그대로 재사용하므로
+      // 여기서 명시적으로 닫고, 최신 토큰으로 우리가 직접 재연결을 예약한다.
       eventSource.close();
       eventSourceRef.current = null;
+      scheduleReconnect();
     };
   };
 
@@ -124,7 +164,8 @@ const connectSSE = (token) => {
     } catch (error) {
       console.error("로그아웃 실패:", error);
     } finally {
-      // 💡 로그아웃 시 SSE 연결도 명시적으로 종료
+      // 💡 로그아웃 시 SSE 연결 및 예약된 재연결 타이머도 명시적으로 종료
+      clearScheduledReconnect();
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
