@@ -138,6 +138,13 @@ public class ParticipationService {
                     "[" + post.getTitle() + "] 모임 참여가 승인되었습니다! 🎉",
                     "/mypage?tab=applied"
             );
+        } else if (newStatus == ParticipationStatus.REJECTED) {
+            // 알림 생성 호출 (승인 알림과 동일한 패턴)
+            notificationService.createNotification(
+                    participation.getMember(), // 신청자
+                    "[" + post.getTitle() + "] 모임 참여 신청이 거절되었습니다 😢",
+                    "/mypage?tab=applied"
+            );
         }
 
         return participation.getId();

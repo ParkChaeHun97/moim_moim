@@ -28,6 +28,9 @@ import java.util.Optional;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -153,13 +156,14 @@ class ParticipationServiceTest {
     class UpdateParticipationStatus {
 
         @Test
-        @DisplayName("성공: 방장이 승인하면 상태가 ACCEPTED로 변경된다")
+        @DisplayName("성공: 방장이 승인하면 상태가 ACCEPTED로 변경되고 승인 알림이 발송된다")
         void updateStatus_success() {
             // given
             Long partId = 500L;
             Long hostId = 999L;
 
             Participation participation = Participation.builder()
+                    .member(applicant)
                     .meetingPost(meetingPost)
                     .status(ParticipationStatus.APPLIED)
                     .build();
@@ -175,6 +179,63 @@ class ParticipationServiceTest {
             // then
             assertThat(resultId).isEqualTo(partId);
             assertThat(participation.getStatus()).isEqualTo(ParticipationStatus.ACCEPTED);
+            verify(notificationService).createNotification(eq(applicant), contains("승인"), anyString());
+        }
+
+        @Test
+        @DisplayName("성공: 방장이 거절하면 상태가 REJECTED로 변경되고 거절 알림이 발송된다")
+        void updateStatus_rejected_success() {
+            // given
+            Long partId = 501L;
+            Long hostId = 999L;
+            int participantsBeforeReject = meetingPost.getCurrentParticipants();
+
+            Participation participation = Participation.builder()
+                    .member(applicant)
+                    .meetingPost(meetingPost)
+                    .status(ParticipationStatus.APPLIED)
+                    .build();
+            ReflectionTestUtils.setField(participation, "id", partId);
+
+            given(participationRepository.findMeetingPostIdById(partId)).willReturn(Optional.of(meetingPost.getId()));
+            given(meetingPostRepository.findByIdForUpdate(meetingPost.getId())).willReturn(Optional.of(meetingPost));
+            given(participationRepository.findByIdForUpdate(partId)).willReturn(Optional.of(participation));
+
+            // when
+            Long resultId = participationService.updateParticipationStatus(partId, "REJECTED", hostId);
+
+            // then
+            assertThat(resultId).isEqualTo(partId);
+            assertThat(participation.getStatus()).isEqualTo(ParticipationStatus.REJECTED);
+            // 거절은 정원에 포함되지 않으므로 참여자 수가 늘어나면 안 된다
+            assertThat(meetingPost.getCurrentParticipants()).isEqualTo(participantsBeforeReject);
+            verify(notificationService).createNotification(eq(applicant), contains("거절"), anyString());
+        }
+
+        @Test
+        @DisplayName("WAITING 상태에서 거절되어도 거절 알림이 발송된다")
+        void updateStatus_rejectFromWaiting_success() {
+            // given
+            Long partId = 502L;
+            Long hostId = 999L;
+
+            Participation participation = Participation.builder()
+                    .member(applicant)
+                    .meetingPost(meetingPost)
+                    .status(ParticipationStatus.WAITING)
+                    .build();
+            ReflectionTestUtils.setField(participation, "id", partId);
+
+            given(participationRepository.findMeetingPostIdById(partId)).willReturn(Optional.of(meetingPost.getId()));
+            given(meetingPostRepository.findByIdForUpdate(meetingPost.getId())).willReturn(Optional.of(meetingPost));
+            given(participationRepository.findByIdForUpdate(partId)).willReturn(Optional.of(participation));
+
+            // when
+            participationService.updateParticipationStatus(partId, "REJECTED", hostId);
+
+            // then
+            assertThat(participation.getStatus()).isEqualTo(ParticipationStatus.REJECTED);
+            verify(notificationService).createNotification(eq(applicant), contains("거절"), anyString());
         }
     }
 }
