@@ -24,7 +24,7 @@ List<MeetingPost> posts = (categoryId != null)
 ### 측정 방법
 
 Hibernate `Statistics.getPrepareStatementCount()`로 실제 실행된 쿼리 개수를 측정했다.
-- 테스트 데이터: 동일 카테고리에 속한 게시글 40개, 서로 다른 작성자 40명
+- 테스트 데이터: 동일 카테고리에 속한 게시글 10개, 서로 다른 작성자 10명
 - `@DataJpaTest` + H2로 실제 SQL을 로그로 확인하며 검증
 - `em.flush() / em.clear()`로 1차 캐시를 비운 뒤 조회해 실제 쿼리 발생 여부를 확인
 
