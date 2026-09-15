@@ -74,7 +74,7 @@ class MeetingServiceQueryCountTest {
         studyCategory = categoryRepository.save(Category.builder().name("스터디").build());
 
         // 게시글 10개 생성 (실무 시나리오처럼 N건 데이터를 넣어 N+1이 눈에 띄게)
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 40; i++) {
             Member creator = memberRepository.save(Member.builder()
                     .email("user" + i + "@test.com")
                     .password("pw")
@@ -112,7 +112,7 @@ class MeetingServiceQueryCountTest {
         System.out.println("카테고리 필터 조회 - 쿼리 실행 횟수: " + queryCount);
         System.out.println("========================================");
 
-        // N+1이 있으면 대략 1(목록) + 10(category) + 10(creator) = 21개 근처가 나옴
+        // N+1이 있으면 대략 1(목록) + 1(category) + 40(creator) = 40개 근처가 나옴
         // fetch join으로 고쳤다면 1~2개 근처로 떨어져야 함
         assertThat(queryCount).isLessThanOrEqualTo(3);
     }
