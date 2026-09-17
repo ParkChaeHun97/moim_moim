@@ -101,7 +101,25 @@ const MyPage = () => {
             case 'REJECTED': return '❌ 거절됨';
             case 'APPLIED': return '⏳ 신청완료';
             case 'WAITING': return '📋 대기중';
+            case 'CANCELLED': return '🚫 취소함';
             default: return '⏳ 확인중';
+        }
+    };
+
+    const handleCancelParticipation = async (participationId, e) => {
+        e.stopPropagation();
+        if (!window.confirm('신청을 취소하시겠습니까?')) return;
+
+        try {
+            await api.delete(`/participation/${participationId}`);
+            setMeetings(prev => prev.map(m => 
+                m.participationId === participationId 
+                    ? { ...m, status: 'CANCELLED' } 
+                    : m
+            ));
+        } catch (error) {
+            console.error("취소 실패:", error);
+            alert(error.response?.data?.message || "취소에 실패했습니다.");
         }
     };
 
@@ -155,9 +173,19 @@ const MyPage = () => {
                                                 신청자 관리
                                             </button>
                                         ) : (
-                                            <span className={`status-badge ${meeting.status}`}>
-                                                {getStatusLabel(meeting.status)}
-                                            </span>
+                                            <div className="applied-status-action">
+                                                <span className={`status-badge ${meeting.status}`}>
+                                                    {getStatusLabel(meeting.status)}
+                                                </span>
+                                                {(meeting.status === 'APPLIED' || meeting.status === 'ACCEPTED') && (
+                                                    <button 
+                                                        className="btn-cancel-participation"
+                                                        onClick={(e) => handleCancelParticipation(meeting.participationId, e)}
+                                                    >
+                                                        취소
+                                                    </button>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                 </div>

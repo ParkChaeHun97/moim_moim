@@ -271,6 +271,34 @@
     border-bottom: 1px solid #f8f9fa;
 }
 
+/* 참여자 상태 + 취소 버튼을 함께 배치하는 컨테이너 */
+.applied-status-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 참여 취소 버튼 */
+.btn-cancel-participation {
+  background: #fff5f5;
+  color: #c92a2a;
+  border: 1px solid #ffc9c9;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-cancel-participation:hover {
+  background: #ffe3e3;
+  border-color: #ff8787;
+}
+
+
+
+
 .p-main-info { flex: 1; }
 .p-nick { font-weight: 700; color: #212529; margin-bottom: 4px; }
 .p-reason { font-size: 0.85rem; color: #495057; }

@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class MeetingSummaryResponse {
     private Long id;
+    private Long participationId; // 추가 — applied 조회 시에만 값이 채워짐
     private String title;
     private String categoryName;
     private LocalDateTime startDate;
@@ -25,35 +26,34 @@ public class MeetingSummaryResponse {
     @JsonProperty("isHost")
     private boolean isHost;
 
-    // 💡 신청 상태 필드 추가 (null일 경우 방장이 만든 모임으로 해석 가능)
     private String status;
 
-    // 1️⃣ 기존 방식: 내가 만든 모임(방장) 조회 시 사용
     public static MeetingSummaryResponse from(MeetingPost post, boolean isHost) {
         return MeetingSummaryResponse.builder()
                 .id(post.getId())
+                .participationId(null) // 방장 조회 시엔 참여 정보 없음
                 .title(post.getTitle())
                 .categoryName(post.getCategory().getName())
                 .startDate(post.getStartDate())
                 .capacity(post.getCapacity())
                 .currentParticipants(post.getCurrentParticipants())
                 .isHost(isHost)
-                .status(null) // 방장은 본인 모임에 status가 필요 없음
+                .status(null)
                 .build();
     }
 
-    // 2️⃣ 새로운 방식: 내가 신청한 모임 조회 시 사용 (Participation 기반)
     public static MeetingSummaryResponse from(Participation participation) {
         MeetingPost post = participation.getMeetingPost();
         return MeetingSummaryResponse.builder()
                 .id(post.getId())
+                .participationId(participation.getId()) // 취소 API 호출용
                 .title(post.getTitle())
                 .categoryName(post.getCategory().getName())
                 .startDate(post.getStartDate())
                 .capacity(post.getCapacity())
                 .currentParticipants(post.getCurrentParticipants())
-                .isHost(false) // 신청 내역이므로 무조건 방장이 아님
-                .status(participation.getStatus().name()) // APPROVED, PENDING 등
+                .isHost(false)
+                .status(participation.getStatus().name())
                 .build();
     }
 }
