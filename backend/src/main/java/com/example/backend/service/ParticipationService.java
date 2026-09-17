@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,6 +31,9 @@ public class ParticipationService {
     private final MemberRepository memberRepository;
     private final NotificationService notificationService;
 
+    /**
+     * 특정 모임에 신청하기.
+     * */
     @Transactional
     public Long applyForMeeting(ParticipationRequestDto requestDto, Long memberId) {
         // 1. 엔티티 존재 여부 확인
@@ -53,21 +57,61 @@ public class ParticipationService {
                 "/mypage?tab=hosted" // 모임장이 확인해야 할 페이지
         );
 
-
         return participation.getId();
     }
+
+    /**
+     * 특정 신청된 모임에 취소하기.
+     * */
+    @Transactional
+    public void cancelParticipation(Long participationId, Long memberId) {
+        // 1. 락 없이 meetingPostId만 조회 (어떤 MeetingPost를 잠글지 알아야 하므로)
+        Long meetingPostId = participationRepository.findMeetingPostIdById(participationId)
+                .orElseThrow(() -> new CustomException(ErrorCode.PARTICIPATION_NOT_FOUND));
+
+        // 2. MeetingPost 먼저 잠금 (정원 race condition 방지, 데드락 회피를 위한 락 순서)
+        MeetingPost post = meetingPostRepository.findByIdForUpdate(meetingPostId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MEETING_NOT_FOUND));
+
+        // 3. 지금 member가 참여자 인지 확인 (비관적 락)
+        Participation participation = participationRepository
+                .findByMemberIdAndMeetingPostIdForUpdate(memberId, meetingPostId)
+                .orElseThrow(() -> new CustomException(ErrorCode.PARTICIPATION_NOT_FOUND));
+
+        // 4. 멱등성 가드
+        if (participation.getStatus() == ParticipationStatus.CANCELLED
+                || participation.getStatus() == ParticipationStatus.REJECTED) { // 이미 취소했거나, 거절 당함
+            throw new CustomException(ErrorCode.ALREADY_PROCESSED_PARTICIPATION);
+        }
+
+        // 6. 수락된 상태인지 확인 해야한다. - 이미 수락된 상태이면 정원이 늘어났을테고, 정원을 줄이기 위해서
+        boolean wasAccepted = participation.getStatus() == ParticipationStatus.ACCEPTED;
+
+        participation.updateStatus(ParticipationStatus.CANCELLED);
+
+        // 정원 줄이기
+        if(wasAccepted) {
+            post.removeParticipants();
+        }
+
+
+
+    }
+
+
 
     private void validateApplication(MeetingPost meetingPost, Long memberId) {
         if (meetingPost.getCreator().getId().equals(memberId)) {
             throw new CustomException(ErrorCode.FORBIDDEN_ACCESS); // 주최자 신청 불가
         }
 
-        if (participationRepository.existsByMemberIdAndMeetingPostId(memberId, meetingPost.getId())) {
+        if (participationRepository.existsByMemberIdAndMeetingPostId(memberId, meetingPost.getId())) { // // 특정 모임에 특정 유저가 이미 참여 중
             throw new CustomException(ErrorCode.ALREADY_PARTICIPATED);
         }
 
         long acceptedCount = participationRepository.countByMeetingPostAndStatus(meetingPost, ParticipationStatus.ACCEPTED);
-        if (acceptedCount >= meetingPost.getCapacity()) {
+
+        if (acceptedCount >= meetingPost.getCapacity()) { // 참여자 제한 수 보다 참여자가 이미 넘었는지.
             throw new CustomException(ErrorCode.MEETING_FULL);
         }
     }

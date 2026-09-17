@@ -23,6 +23,12 @@ public interface ParticipationRepository extends JpaRepository<Participation, Lo
     // 특정 모임에서 승인(APPROVED)된 참여자 수 조회
     long countByMeetingPostAndStatus(MeetingPost meetingPost, ParticipationStatus status);
 
+    // 특정 모임에서, memberId를 가진 사람이 이 모임에 신청을 하였는가 확인
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000"))
+    @Query("SELECT p FROM Participation p WHERE p.member.id = :memberId AND p.meetingPost.id = :meetingPostId")
+    Optional<Participation> findByMemberIdAndMeetingPostIdForUpdate(@Param("memberId") Long memberId, @Param("meetingPostId") Long meetingPostId);
+
     @Query("SELECT p FROM Participation p " +
             "JOIN FETCH p.member " + // 💡 Participation을 가져올 때 Member까지 한 번에!
             "WHERE p.meetingPost.id = :postId")
