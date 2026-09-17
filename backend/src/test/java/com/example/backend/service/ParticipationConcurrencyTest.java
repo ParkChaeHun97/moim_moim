@@ -68,6 +68,9 @@ class ParticipationConcurrencyTest {
     private Long participationIdA;
     private Long participationIdB;
 
+    private List<Long> acceptedParticipationIds = new ArrayList<>();
+    private List<Long> acceptedMemberIds = new ArrayList<>();
+
     @BeforeEach
     void setUp() {
         Member host = memberRepository.save(Member.builder()
@@ -106,13 +109,18 @@ class ParticipationConcurrencyTest {
                     .level(1)
                     .build());
 
-            participationRepository.save(Participation.builder()
+            Participation participation = participationRepository.save(Participation.builder()
                     .member(accepted)
                     .meetingPost(post)
                     .role(ParticipationRole.PARTICIPANT)
                     .status(ParticipationStatus.ACCEPTED)
                     .joinReason("먼저 승인된 참여자")
                     .build());
+
+            acceptedParticipationIds.add(participation.getId());
+            acceptedMemberIds.add(accepted.getId());
+
+
         }
 
         // addParticipant()가 검사하는 필드를 실제 ACCEPTED 인원 수(4)와 맞춰준다
@@ -229,5 +237,111 @@ class ParticipationConcurrencyTest {
                 .filter(p -> p.getStatus() == ParticipationStatus.APPLIED)
                 .count();
         assertThat(stillAppliedCount).isEqualTo(1); // 실패한 쪽은 상태 변경 없이 APPLIED로 남아야 한다
+
     }
+
+    @Test
+    @DisplayName("ACCEPTED 상태인 4명이 동시에 취소하면 정원이 정확히 0까지 감소한다")
+    void concurrentCancel_decreasesCapacityCorrectly() throws InterruptedException {
+        int threadCount = 4;
+        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+
+        CountDownLatch readyLatch = new CountDownLatch(threadCount);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(threadCount);
+
+        List<Object> results = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < threadCount; i++) {
+            Long participationId = acceptedParticipationIds.get(i);
+            Long memberId = acceptedMemberIds.get(i);
+            executorService.submit(() -> {
+                try {
+                    readyLatch.countDown();
+                    startLatch.await();
+                    participationService.cancelParticipation(participationId, memberId);
+                    results.add("SUCCESS");
+                } catch (Exception e) {
+                    results.add(e);
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        readyLatch.await();
+        startLatch.countDown();
+        boolean finished = doneLatch.await(10, TimeUnit.SECONDS);
+        executorService.shutdown();
+
+        assertThat(finished).as("락이 풀리지 않고 걸려있으면 실패").isTrue();
+
+        long successCount = results.stream().filter(r -> r.equals("SUCCESS")).count();
+        assertThat(successCount).isEqualTo(4);
+
+        MeetingPost finalPost = meetingPostRepository.findById(meetingPostId).orElseThrow();
+        assertThat(finalPost.getCurrentParticipants()).isEqualTo(0); // 4 - 4 = 0, 마이너스면 버그
+
+        long cancelledCount = participationRepository.findAllByMeetingPostId(meetingPostId).stream()
+                .filter(p -> p.getStatus() == ParticipationStatus.CANCELLED)
+                .count();
+        assertThat(cancelledCount).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("같은 참가 건에 취소 요청이 동시에 여러 번 들어와도 정원은 1번만 감소한다")
+    void concurrentCancel_sameParticipation_onlyOneSucceeds() throws InterruptedException {
+        Long targetParticipationId = acceptedParticipationIds.get(0);
+        Long targetMemberId = acceptedMemberIds.get(0);
+
+        int threadCount = 3;
+        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+
+        CountDownLatch readyLatch = new CountDownLatch(threadCount);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(threadCount);
+
+        List<Object> results = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < threadCount; i++) {
+            executorService.submit(() -> {
+                try {
+                    readyLatch.countDown();
+                    startLatch.await();
+                    participationService.cancelParticipation(targetParticipationId, targetMemberId);
+                    results.add("SUCCESS");
+                } catch (Exception e) {
+                    results.add(e);
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        readyLatch.await();
+        startLatch.countDown();
+        boolean finished = doneLatch.await(10, TimeUnit.SECONDS);
+        executorService.shutdown();
+
+        assertThat(finished).isTrue();
+
+        long successCount = results.stream().filter(r -> r.equals("SUCCESS")).count();
+        long alreadyProcessedCount = results.stream()
+                .filter(r -> r instanceof CustomException)
+                .map(r -> (CustomException) r)
+                .filter(e -> e.getErrorCode() == ErrorCode.ALREADY_PROCESSED_PARTICIPATION)
+                .count();
+
+        assertThat(successCount).isEqualTo(1);
+        assertThat(alreadyProcessedCount).isEqualTo(2); // 나머지는 멱등성 가드에 걸려야 함
+
+        MeetingPost finalPost = meetingPostRepository.findById(meetingPostId).orElseThrow();
+
+
+        assertThat(finalPost.getCurrentParticipants()).isEqualTo(3); // 4 - 1 = 3, 여러 번 안 깎였는지
+    }
+
+
+
+
 }

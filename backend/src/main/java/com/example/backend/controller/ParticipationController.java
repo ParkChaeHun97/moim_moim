@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -42,5 +43,13 @@ public class ParticipationController {
         Long hostId = Long.valueOf(authentication.getName());
         Long updatedId = participationService.updateParticipationStatus(participationId, status, hostId);
         return ResponseEntity.status(HttpStatus.OK).body(updatedId);
+    }
+
+    @DeleteMapping("/{participationId}")
+    public ResponseEntity<Void> cancelParticipation(
+            @PathVariable Long participationId,
+            @AuthenticationPrincipal Long memberId) {
+        participationService.cancelParticipation(participationId, memberId);
+        return ResponseEntity.noContent().build();
     }
 }

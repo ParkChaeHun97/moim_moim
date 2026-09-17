@@ -134,8 +134,12 @@ public class MeetingPost extends BaseTimeEntity {
         this.endDate = request.getEndDate();
     }
 
+    // 참여 인원 감소 (수락을 받았을 때 참가 취소시 감소)
+    public void removeParticipants() {
+        this.currentParticipants--;
+    }
 
-    // 참여 인원 증가 (신규 신청 시 사용)
+    // 참여 인원 증가 (신규 신청 시, 수락할 시 증가)
     public void addParticipant() {
         // 1. 엣지 케이스 검증: 현재 인원이 정원(capacity)과 같거나 큰지 확인
         if (this.currentParticipants >= this.capacity) {
