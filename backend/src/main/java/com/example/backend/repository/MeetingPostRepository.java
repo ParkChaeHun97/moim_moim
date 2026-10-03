@@ -26,11 +26,6 @@ public interface MeetingPostRepository extends JpaRepository<MeetingPost, Long> 
     Optional<MeetingPost> findByIdForUpdate(@Param("id") Long id);
 
 
-    // 최신 생성일 순으로 전체 조회
-    // N+1 방지를 위한 fetch join
-    @Query("select m from MeetingPost m join fetch m.category join fetch m.creator order by m.createdAt desc")
-    List<MeetingPost> findAllWithDetails();
-
     // 최신순 정렬 (기본) + 카테고리 필터 선택
     @Query("select m from MeetingPost m join fetch m.category join fetch m.creator " +
             "where (:categoryId is null or m.category.id = :categoryId) " +
