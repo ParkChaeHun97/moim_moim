@@ -1,5 +1,6 @@
 package com.example.backend.service;
 
+import com.example.backend.dto.MeetingListResponse;
 import com.example.backend.entity.Category;
 import com.example.backend.entity.MeetingPost;
 import com.example.backend.entity.Member;
@@ -13,16 +14,17 @@ import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -73,7 +75,7 @@ class MeetingServiceQueryCountTest {
 
         studyCategory = categoryRepository.save(Category.builder().name("스터디").build());
 
-        // 게시글 10개 생성 (실무 시나리오처럼 N건 데이터를 넣어 N+1이 눈에 띄게)
+        // 게시글 40개 생성 (실무 시나리오처럼 N건 데이터를 넣어 N+1이 눈에 띄게)
         for (int i = 0; i < 40; i++) {
             Member creator = memberRepository.save(Member.builder()
                     .email("user" + i + "@test.com")
@@ -100,11 +102,12 @@ class MeetingServiceQueryCountTest {
         statistics.clear(); // 데이터 세팅 과정에서 나간 쿼리는 카운트에서 제외
     }
 
-    @Test
     @DisplayName("카테고리 필터 + 기본 정렬 조회 시 쿼리 개수 확인")
-    void countQueries_withCategoryFilter() {
+    @ParameterizedTest()
+    @ValueSource(strings = {"default", "closing", "popular", "urgent"})
+    void countQueries_withCategoryFilter(String sortBy) {
         // when
-        meetingService.getAllMeetings("default", studyCategory.getId());
+        List<MeetingListResponse> allMeetings = meetingService.getAllMeetings(sortBy, studyCategory.getId());
 
         // then
         long queryCount = statistics.getPrepareStatementCount();
@@ -112,16 +115,19 @@ class MeetingServiceQueryCountTest {
         System.out.println("카테고리 필터 조회 - 쿼리 실행 횟수: " + queryCount);
         System.out.println("========================================");
 
-        // N+1이 있으면 대략 1(목록) + 1(category) + 40(creator) = 40개 근처가 나옴
-        // fetch join으로 고쳤다면 1~2개 근처로 떨어져야 함
-        assertThat(queryCount).isLessThanOrEqualTo(3);
+        // N+1이 있으면 1(목록) + 1(category) + 40(creator) = 42개
+        // fetch join으로 고쳤다면 1개
+        assertThat(queryCount).isEqualTo(1);
+        assertThat(allMeetings).hasSize(40);
     }
 
-    @Test
+
     @DisplayName("카테고리 필터 없이 전체 조회 시 쿼리 개수 확인")
-    void countQueries_withoutCategoryFilter() {
+    @ParameterizedTest()
+    @ValueSource(strings = {"default", "closing", "popular", "urgent"})
+    void countQueries_withoutCategoryFilter(String sortBy) {
         // when
-        meetingService.getAllMeetings("default", null);
+        List<MeetingListResponse> allMeetings = meetingService.getAllMeetings(sortBy, null);
 
         // then
         long queryCount = statistics.getPrepareStatementCount();
@@ -129,6 +135,7 @@ class MeetingServiceQueryCountTest {
         System.out.println("전체 조회 - 쿼리 실행 횟수: " + queryCount);
         System.out.println("========================================");
 
-        assertThat(queryCount).isLessThanOrEqualTo(3);
+        assertThat(queryCount).isEqualTo(1);
+        assertThat(allMeetings).hasSize(40);
     }
 }
