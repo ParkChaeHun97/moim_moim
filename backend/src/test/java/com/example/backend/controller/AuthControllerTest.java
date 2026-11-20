@@ -116,4 +116,57 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.containsString("Max-Age=0")));
     }
+
+    @Test
+    @WithMockUser
+    @DisplayName("로그인 성공 시 refreshToken은 body에 없고 HttpOnly, Secure 쿠키로만 전달된다")
+    void login_api_success_refreshTokenOnlyInCookie() throws Exception {
+        TokenResponseDto responseDto = TokenResponseDto.builder()
+                .accessToken("access-token")
+                .refreshToken("RT-VALUE")
+                .refreshTokenExpirationTime(3600000L)
+                .build();
+
+        given(authService.login(any(), any())).willReturn(responseDto);
+
+        Map<String, String> loginRequest = Map.of(
+                "email", "test@test.com",
+                "password", "password123"
+        );
+
+        mockMvc.perform(post("/api/auth/login")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
+                .andExpect(content().string(not(containsString("RT-VALUE"))))
+                .andExpect(header().string("Set-Cookie", containsString("refreshToken=RT-VALUE")))
+                .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
+                .andExpect(header().string("Set-Cookie", containsString("Secure")));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("재발급 성공 시 refreshToken은 body에 없고 HttpOnly, Secure 쿠키로만 전달된다")
+    void reissue_api_success_refreshTokenOnlyInCookie() throws Exception {
+        TokenResponseDto responseDto = TokenResponseDto.builder()
+                .accessToken("new-access-token")
+                .refreshToken("NEW-RT-VALUE")
+                .refreshTokenExpirationTime(3600000L)
+                .build();
+
+        given(authService.reissue(any())).willReturn(responseDto);
+
+        mockMvc.perform(post("/api/auth/reissue")
+                        .with(csrf())
+                        .cookie(new Cookie("refreshToken", "old-refresh-token")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
+                .andExpect(content().string(not(containsString("NEW-RT-VALUE"))))
+                .andExpect(header().string("Set-Cookie", containsString("refreshToken=NEW-RT-VALUE")))
+                .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
+                .andExpect(header().string("Set-Cookie", containsString("Secure")));
+    }
+
 }

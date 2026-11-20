@@ -1,6 +1,7 @@
 package com.example.backend.controller;
 
 
+import com.example.backend.dto.AccessTokenResponse;
 import com.example.backend.dto.LoginRequest;
 import com.example.backend.dto.RegisterRequest;
 import com.example.backend.dto.TokenResponseDto;
@@ -32,7 +33,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<TokenResponseDto> login(@RequestBody LoginRequest loginRequest, HttpServletResponse response) {
+    public ResponseEntity<AccessTokenResponse> login(@RequestBody LoginRequest loginRequest, HttpServletResponse response) {
         // 1. 서비스에서 토큰 세트(AT, RT) 생성
         // (실제 구현 시에는 userService 등을 통해 role을 조회해와야 합니다)
         TokenResponseDto tokenDto = authService.login(loginRequest.getEmail(), loginRequest.getPassword());
@@ -53,11 +54,11 @@ public class AuthController {
 
         // 4. Access Token 정보만 바디에 담아 반환
         // 클라이언트는 이 JSON을 받아 Authorization 헤더에 Bearer로 사용합니다.
-        return ResponseEntity.ok(tokenDto);
+        return ResponseEntity.ok(AccessTokenResponse.from(tokenDto));
     }
 
     @PostMapping("/reissue")
-    public ResponseEntity<?> reissue(@CookieValue(name = "refreshToken") String refreshToken, HttpServletResponse response) {
+    public ResponseEntity<AccessTokenResponse> reissue(@CookieValue(name = "refreshToken") String refreshToken, HttpServletResponse response) {
         // 쿠키에서 꺼낸 RT로 재발급 수행
         TokenResponseDto tokenDto = authService.reissue(refreshToken);
 
@@ -73,7 +74,7 @@ public class AuthController {
         // 3. 응답 헤더에 새 쿠키 설정 (기존 쿠키 덮어쓰기)
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
 
-        return ResponseEntity.ok(tokenDto);
+        return ResponseEntity.ok(AccessTokenResponse.from(tokenDto));
     }
 
     @PostMapping("/logout")

@@ -78,6 +78,8 @@ public class ParticipationService {
                 .findByMemberIdAndMeetingPostIdForUpdate(memberId, meetingPostId)
                 .orElseThrow(() -> new CustomException(ErrorCode.PARTICIPATION_NOT_FOUND));
 
+        // TODO : 본인인지 검증해야한다.
+
         // 4. 멱등성 가드
         if (participation.getStatus() == ParticipationStatus.CANCELLED
                 || participation.getStatus() == ParticipationStatus.REJECTED) { // 이미 취소했거나, 거절 당함
@@ -143,6 +145,7 @@ public class ParticipationService {
     public Long updateParticipationStatus(Long participationId, String statusStr, Long hostId) {
         ParticipationStatus newStatus;
         try {
+            // TODO : 허용값을 ACCEPTED, REJECTED로만 제한
             newStatus = ParticipationStatus.valueOf(statusStr.toUpperCase());
         } catch (IllegalArgumentException e) {
             // 💡 잘못된 상태 값 (예: ACCEPTED인데 ACSEPTED로 보낸 경우 등)
