@@ -13,7 +13,7 @@ public enum ErrorCode {
     DUPLICATE_EMAIL(409, "MEMBER_003", "이미 사용 중인 이메일입니다."),
 
     // Auth
-    INVALID_PASSWORD(401, "AUTH_001", "비밀번호가 일치하지 않습니다."),
+    INVALID_CREDENTIALS(401, "AUTH_001", "이메일 또는 비밀번호가 올바르지 않습니다."),
     INVALID_TOKEN(401, "AUTH_002", "유효하지 않은 토큰입니다."),
     EXPIRED_TOKEN(401, "AUTH_003", "만료된 토큰입니다."),
     FORBIDDEN_ACCESS(403, "AUTH_004", "해당 리소스에 대한 접근 권한이 없습니다."),

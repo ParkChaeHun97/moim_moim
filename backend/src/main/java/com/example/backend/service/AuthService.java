@@ -33,7 +33,7 @@ public class AuthService {
     public TokenResponseDto login(String email, String password) {
 
         Member member = memberRepository.findByEmail(email)
-                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
 
 
         member.validatePassword(passwordEncoder, password);

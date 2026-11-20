@@ -72,7 +72,7 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 비밀번호가 일치하지 않으면 INVALID_PASSWORD 예외 발생")
+        @DisplayName("실패: 비밀번호가 일치하지 않으면 INVALID_CREDENTIALS 예외 발생")
         void login_fail_invalid_password() {
             String email = "test@test.com";
             Member member = Member.builder().email(email).password("encoded").build();
@@ -82,7 +82,19 @@ class AuthServiceTest {
 
             assertThatThrownBy(() -> authService.login(email, "wrong-password"))
                     .isInstanceOf(CustomException.class)
-                    .hasMessageContaining(ErrorCode.INVALID_PASSWORD.getMessage());
+                    .hasMessageContaining(ErrorCode.INVALID_CREDENTIALS.getMessage());
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 이메일도 비밀번호 불일치와 같은 INVALID_CREDENTIALS 예외가 발생한다")
+        void login_fail_unknownEmail_sameErrorAsWrongPassword() {
+            when(memberRepository.findByEmail("none@test.com")).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> authService.login("none@test.com", "password123"))
+                    .isInstanceOf(CustomException.class)
+                    .hasMessageContaining(ErrorCode.INVALID_CREDENTIALS.getMessage());
+
+            verify(tokenRepository, never()).saveRefreshToken(any(), any());
         }
     }
 

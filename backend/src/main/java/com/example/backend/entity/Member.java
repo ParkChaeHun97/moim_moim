@@ -90,7 +90,7 @@ public class Member extends BaseTimeEntity {
 
     public void validatePassword(PasswordEncoder passwordEncoder, String rawPassword) {
         if (!passwordEncoder.matches(rawPassword, this.password)) {
-            throw new CustomException(ErrorCode.INVALID_PASSWORD);
+            throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
     }
 

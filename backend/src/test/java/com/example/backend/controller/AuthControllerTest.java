@@ -1,7 +1,10 @@
 package com.example.backend.controller;
 
+import com.example.backend.common.exception.CustomException;
+import com.example.backend.common.exception.ErrorCode;
 import com.example.backend.dto.RegisterRequest;
 import com.example.backend.dto.TokenResponseDto;
+import com.example.backend.entity.Member;
 import com.example.backend.service.AuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
@@ -16,12 +19,16 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Map;
+import java.util.Optional;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf; // CSRF 추가
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -168,5 +175,7 @@ class AuthControllerTest {
                 .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
                 .andExpect(header().string("Set-Cookie", containsString("Secure")));
     }
+
+
 
 }
