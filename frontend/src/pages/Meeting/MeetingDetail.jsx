@@ -92,7 +92,7 @@ const MeetingDetail = () => {
                     </div>
                     <h1 className="meeting-title">{meeting.title}</h1>
                     <div className="meeting-meta">
-                        <span>작성자: <strong>{meeting.creatorEmail}</strong></span>
+                        <span>작성자: <strong>{meeting.creatorNickname}</strong></span>
                         <span className="meta-divider">|</span>
                         <span>작성일: {new Date(meeting.createdAt).toLocaleDateString()}</span>
                     </div>

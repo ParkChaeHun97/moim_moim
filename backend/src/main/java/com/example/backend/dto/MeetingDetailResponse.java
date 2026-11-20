@@ -22,7 +22,7 @@ public class MeetingDetailResponse {
     private int viewCount;
     private String categoryName;
     private Long categoryId; // 수정시 프론트 Select 박스 초기값용
-    private String creatorEmail;
+    private String creatorNickname;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private LocalDateTime createdAt;
@@ -39,7 +39,7 @@ public class MeetingDetailResponse {
                 .viewCount(post.getViewCount())
                 .categoryName(post.getCategory().getName())
                 .categoryId(post.getCategory().getId())
-                .creatorEmail(post.getCreator().getEmail())
+                .creatorNickname(post.getCreator().getNickname())
                 .startDate(post.getStartDate())
                 .endDate(post.getEndDate())
                 .createdAt(post.getCreatedAt())

@@ -192,4 +192,6 @@ class MeetingServiceTest {
             assertThat(result.getViewCount()).isEqualTo(10);
         }
     }
+
+
 }

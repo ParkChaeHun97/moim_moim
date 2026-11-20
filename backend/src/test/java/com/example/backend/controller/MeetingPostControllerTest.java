@@ -202,4 +202,27 @@ class MeetingPostControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON_001"));
     }
+
+    @Test
+    @DisplayName("모임 상세 조회 시 작성자 닉네임을 반환하고 이메일 필드는 없다")
+    void getMeetingDetail_api_returnsCreatorNickname() throws Exception {
+        // given
+        Long meetingId = 100L;
+        MeetingDetailResponse response = MeetingDetailResponse.builder()
+                .id(meetingId)
+                .creatorNickname("nickname")
+                .build();
+
+        // 💡 서비스 파라미터 순서: (id, memberId, request, response)
+        // any()를 사용하여 HttpServletRequest/Response 타입 인자를 수용하도록 설정
+        given(meetingService.getMeetingDetail(eq(meetingId), any(), any(), any())).willReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/api/meetings/{id}", meetingId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.creatorNickname").value("nickname"))
+                .andExpect(jsonPath("$.id").value(meetingId))
+                .andExpect(jsonPath("$.creatorEmail").doesNotExist());
+
+    }
 }
