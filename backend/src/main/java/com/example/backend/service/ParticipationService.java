@@ -148,10 +148,12 @@ public class ParticipationService {
     public Long updateParticipationStatus(Long participationId, String statusStr, Long hostId) {
         ParticipationStatus newStatus;
         try {
-            // TODO : 허용값을 ACCEPTED, REJECTED로만 제한
             newStatus = ParticipationStatus.valueOf(statusStr.toUpperCase());
         } catch (IllegalArgumentException e) {
-            // 💡 잘못된 상태 값 (예: ACCEPTED인데 ACSEPTED로 보낸 경우 등)
+            throw new CustomException(ErrorCode.INVALID_PARTICIPATION_STATUS);
+        }
+
+        if (newStatus != ParticipationStatus.ACCEPTED && newStatus != ParticipationStatus.REJECTED) {
             throw new CustomException(ErrorCode.INVALID_PARTICIPATION_STATUS);
         }
 
