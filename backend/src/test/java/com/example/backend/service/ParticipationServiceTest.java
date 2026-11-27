@@ -238,4 +238,38 @@ class ParticipationServiceTest {
             verify(notificationService).createNotification(eq(applicant), contains("거절"), anyString());
         }
     }
+
+    @Test
+    @DisplayName("타인의 participationId로 취소하면 예외가 발생하고 상태는 그대로다")
+    void cancel_fail_notOwner_noStateChange() {
+        Member a = Member.builder().id(2L).nickname("a").build();
+
+        Participation myParticipation = Participation.builder()
+                .member(applicant)
+                .meetingPost(meetingPost)
+                .status(ParticipationStatus.APPLIED)
+                .build();
+
+        Participation other = Participation.builder()
+                .member(a)
+                .meetingPost(meetingPost)
+                .status(ParticipationStatus.APPLIED)
+                .build();
+
+        ReflectionTestUtils.setField(myParticipation, "id", 501L);
+        ReflectionTestUtils.setField(other, "id", 502L);
+
+        // given
+        given(participationRepository.findMeetingPostIdById(502L)).willReturn(Optional.of(100L));
+        given(meetingPostRepository.findByIdForUpdate(100L)).willReturn(Optional.of(meetingPost));
+        given(participationRepository.findByIdForUpdate(502L)).willReturn(Optional.of(other));
+
+        // when & then
+        // 1) 1번 멤버가 502번 participationId로 cancelParticipation을 호출하면 예외가 발생해야 한다
+        assertThatThrownBy(() -> participationService.cancelParticipation(502L, 1L))
+                .isInstanceOf(CustomException.class);
+        // 2) 예외 후 myParticipation, other 둘 다 status가 APPLIED 그대로인지 확인
+        assertThat(myParticipation.getStatus()).isEqualTo(ParticipationStatus.APPLIED);
+        assertThat(other.getStatus()).isEqualTo(ParticipationStatus.APPLIED);
+    }
 }

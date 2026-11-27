@@ -75,8 +75,12 @@ public class ParticipationService {
 
         // 3. 지금 member가 참여자 인지 확인 (비관적 락)
         Participation participation = participationRepository
-                .findByMemberIdAndMeetingPostIdForUpdate(memberId, meetingPostId)
+                .findByIdForUpdate(participationId)
                 .orElseThrow(() -> new CustomException(ErrorCode.PARTICIPATION_NOT_FOUND));
+
+        if(!participation.getMember().getId().equals(memberId)) {
+            throw new CustomException(ErrorCode.PARTICIPATION_NOT_FOUND);
+        }
 
         // TODO : 본인인지 검증해야한다.
 
