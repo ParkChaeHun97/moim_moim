@@ -62,7 +62,6 @@ public class Member extends BaseTimeEntity {
 
 
     // ROLE용 메서드
-    @Builder
     public Member(String email, String password, Role role) {
         this.email = email;
         this.password = password;
@@ -70,7 +69,6 @@ public class Member extends BaseTimeEntity {
     }
 
     // Member Builder
-    @Builder
     public static Member createNewMember(RegisterRequest request,
                                          String encodedPassword,
                                          Region region) {
