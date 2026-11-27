@@ -194,3 +194,23 @@ body로도 내려가면 JavaScript에서 읽을 수 있어서, 쿠키를 `HttpOn
 에러 코드가 `INVALID_PARTICIPATION_STATUS`인지 확인하고, `verifyNoInteractions`로 repository와 알림 서비스가 호출되지 않았음(락 이전에 거부됨)도 확인한다.
 수정 전에는 stub이 없어 `PARTICIPATION_NOT_FOUND`가 던져지며 실패해, 예외 타입만 검사했다면 엉뚱한 이유로 통과했을 테스트를 에러 코드 검증으로 정확히 잡아냈다.
 이번 작업으로 "예외가 발생한다"가 아니라 "의도한 이유로 예외가 발생한다"를 검증해야 한다는 점, 그리고 블랙리스트보다 화이트리스트가 변경에 안전하다는 점을 확인했다.
+
+### 참가 취소 API가 요청한 participationId의 소유자를 검증하지 않던 문제
+
+**문제**
+`cancelParticipation(participationId, memberId)`는 `participationId`로 어떤 모임인지(`meetingPostId`)만 조회하고, 취소 대상은 `memberId + meetingPostId` 조합으로 다시 찾았다.
+그래서 요청한 `participationId`가 로그인한 사용자의 것인지 확인하지 않았다.
+같은 모임에 참가한 영희가 다른 참가자의 ID로 취소를 요청해도 다른 사람의 참가는 그대로 두고 영희 본인의 참가가 취소됐다.
+요청한 대상과 실제로 취소되는 대상이 달라지는 API 계약 위반이었다.
+
+**조치**
+`findByMemberIdAndMeetingPostIdForUpdate` 대신 이미 있던 `findByIdForUpdate(participationId)`로 요청한 참가를 직접 락 조회하고,
+소유자 ID와 요청자 `memberId`를 `equals`로 비교하도록 바꿨다. 소유자가 다르면 `PARTICIPATION_NOT_FOUND`를 던진다.
+403 대신 404를 택한 것은 다른 사람의 참가 ID가 존재하는지 드러내지 않기 위해서다(로그인 실패 응답을 통일한 방향과 같다).
+락 순서(MeetingPost → Participation)는 그대로 유지해 데드락 회피 설계를 건드리지 않았다. (커밋 `2e6f49c6`)
+
+**결과**
+`ParticipationServiceTest`에 같은 모임의 두 참가(501, 502)를 만들고 1번 멤버가 502번으로 취소를 요청하면 예외가 발생하고 두 참가의 상태가 모두 `APPLIED`로 유지되는지 검증하는 테스트를 추가했다.
+수정 전에는 예외 없이 1번의 참가가 취소돼 이 테스트가 실패(red)했고, 수정 후 통과(green)했다.
+mock 기반 테스트는 서비스가 호출하는 repository 메서드에 묶여 있어서, 조회 메서드를 바꾸자 기존 stub이 `UnnecessaryStubbingException`으로 지적됐고 stub도 함께 바꿔야 했다.
+

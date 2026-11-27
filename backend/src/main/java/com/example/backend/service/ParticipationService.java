@@ -75,8 +75,12 @@ public class ParticipationService {
 
         // 3. 지금 member가 참여자 인지 확인 (비관적 락)
         Participation participation = participationRepository
-                .findByMemberIdAndMeetingPostIdForUpdate(memberId, meetingPostId)
+                .findByIdForUpdate(participationId)
                 .orElseThrow(() -> new CustomException(ErrorCode.PARTICIPATION_NOT_FOUND));
+
+        if(!participation.getMember().getId().equals(memberId)) {
+            throw new CustomException(ErrorCode.PARTICIPATION_NOT_FOUND);
+        }
 
 
         // 4. 멱등성 가드
@@ -146,7 +150,6 @@ public class ParticipationService {
         try {
             newStatus = ParticipationStatus.valueOf(statusStr.toUpperCase());
         } catch (IllegalArgumentException e) {
-            // 💡 잘못된 상태 값 (예: ACCEPTED인데 ACSEPTED로 보낸 경우 등)
             throw new CustomException(ErrorCode.INVALID_PARTICIPATION_STATUS);
         }
 

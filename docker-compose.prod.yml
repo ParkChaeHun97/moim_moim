@@ -4,7 +4,7 @@ services:
   nginx:
     networks:
       - moim-network
-    image: qcogns97/moim-nginx:latest
+    image: qcogns97/moim-nginx:${IMAGE_TAG:-latest}
     container_name: moim-nginx
     ports:
       - "80:80"
@@ -19,7 +19,7 @@ services:
   backend:
     networks:
       - moim-network
-    image: qcogns97/moim-backend:latest
+    image: qcogns97/moim-backend:${IMAGE_TAG:-latest}
     container_name: moim-backend
     env_file:
       - .env.prod

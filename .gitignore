@@ -39,3 +39,6 @@ frontend/dist/
 # =====================
 # Nginx
 # =====================
+
+# Gradle Wrapper
+!backend/gradle/wrapper/gradle-wrapper.jar
